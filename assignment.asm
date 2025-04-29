@@ -1,8 +1,11 @@
 .data
 	#shared: board, rules prompt, continue prompt, invalid messages
 	#each player: prompt to get coordinate
-	board: .space #TODO
-	displayBoard: .space #TODO
+	board: .space 225        # 15 x 15 = 225 cells
+    	displayBoard: .space 1350 # each cell display 6 bytes, 225 * 6 = 1350
+    	str_endl: .asciiz "\n"
+    	str_space: .asciiz "   "
+    	str_header: .asciiz "    _0_   _1_   _2_   _3_   _4_   _5_   _6_   _7_   _8_   _9_   _10   _11   _12   _13   _14\n"
 	rules: .asciiz "abc"
 	coordPrompt1: .asciiz "Player 1, please input your coordinates: "
 	coordPrompt2: .asciiz "Player 2, please input your coordinates: "
@@ -14,12 +17,12 @@
 	jal makeBoard
 gamePlay:
 	jal showBoard
-	jal promptCoord
-	jal showBoard
-	jal checkWinner #already printed winner message, return in $v0 1 if game ends, else 0
-	beqz gamePlay
+	#jal promptCoord
+	#jal showBoard
+	#jal checkWinner #already printed winner message, return in $v0 1 if game ends, else 0
+	#beqz gamePlay
 
-	jal writeToFile
+	#jal writeToFile
 	li $v0, 10
 	syscall
 	
@@ -29,62 +32,108 @@ displayRules:
 # ---------------------------------------------------------------------------------------------------- #
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
-	jal stackIn
+	#jal stackIn
 	
 	#TODO
 	
-	jal stackOut
+	#jal stackOut
  	lw $ra, 0($sp)
  	addi $sp, $sp, 4
  	jr $ra
  	
 makeBoard:
 # ---------------------------------------------------------------------------------------------------- #
-#   	Task1: Initialize 'board' one dimension array with size 15*15 row major order
-#	Initial value of each entry is 0: 
-#	Task2: Initialize 'displayBoard': _x_ then three space
-# 	Row/Col   	 _0_   _1_   _2_   _3_   _4_   _5_   _7_   _8_   _9_   _10   _11   _12   _13   _14
-#	    0 		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    1		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    2		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    3		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    4		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    5		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    6		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    7		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    8		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	    9		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	   10		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	   11		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	   12		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	   13		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
-#	   14		 ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___   ___
+#   Task1: Initialize 'board' one dimension array with size 15*15 row major order
+#   Initial value of each entry is 0
+#   Task2: Initialize 'displayBoard': _x_ then three spaces
 # ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
-	
-	#TODO
-	
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+
+    # Initialize board with 0
+    la $t0, board       # $t0 = address of board
+    li $t1, 0           # counter
+    li $t2, 225         # total cells
+init_board_loop:
+    sb $zero, 0($t0)    # store 0
+    addi $t0, $t0, 1
+    addi $t1, $t1, 1
+    blt $t1, $t2, init_board_loop
+
+    # Initialize displayBoard with "___   "
+    la $t0, displayBoard
+    li $t1, 0           # counter
+init_display_loop:
+    li $t2, 95          # ASCII '_'
+    sb $t2, 0($t0)      # _
+    sb $t2, 1($t0)      # _
+    sb $t2, 2($t0)      # _
+    li $t2, 32          # ASCII ' '
+    sb $t2, 3($t0)      # space
+    sb $t2, 4($t0)      # space
+    sb $t2, 5($t0)      # space
+    addi $t0, $t0, 6    # move to next cell
+    addi $t1, $t1, 1
+    li $t2, 225
+    blt $t1, $t2, init_display_loop
+
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+    jr $ra
  	
 showBoard:
-# ---------------------------------------------------------------------------------------------------- #
-#   show displayBoard
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
-	
-	#TODO
-	
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+addi $sp, $sp, -4
+    sw $ra, 0($sp)
+
+    # Print header (column numbers)
+    li $v0, 4
+    la $a0, str_header
+    syscall
+
+    # Print board
+    la $t0, displayBoard  # $t0 = pointer to displayBoard
+    li $t1, 0             # row counter
+
+print_row:
+    # Print row number
+    li $v0, 1
+    move $a0, $t1
+    syscall
+
+    # Print spacing after row number
+    li $v0, 4
+    la $a0, str_space
+    syscall
+
+    li $t2, 0             # col counter
+
+print_col:
+    li $t4, 0             # inner counter for 6 chars
+print_cell_char:
+    lb $a0, 0($t0)        # load one byte from displayBoard
+    li $v0, 11            # syscall to print character
+    syscall
+    addi $t0, $t0, 1      # move to next byte in displayBoard
+    addi $t4, $t4, 1
+    li $t5, 6             # 6 characters per cell
+    blt $t4, $t5, print_cell_char
+
+    addi $t2, $t2, 1
+    li $t3, 15
+    blt $t2, $t3, print_col
+
+    # New line after row
+    li $v0, 4
+    la $a0, str_endl
+    syscall
+
+    addi $t1, $t1, 1
+    li $t3, 15
+    blt $t1, $t3, print_row
+
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+    jr $ra
  	
 promptCoord:
 # ---------------------------------------------------------------------------------------------------- #
