@@ -12,6 +12,20 @@
 	outRangeMsg: .asciiz "Coordinates out of range! Each coordinate must be between 0-14."
 	occupiedCellMsg: .asciiz "Cell is already occupied."
 	wrongFormatMsg: .asciiz "Coordinates input should be 'x,y' (Horizontal, Vertical) "
+	newline:        .asciiz "\n"
+	separator:      .asciiz "------------------------------------------------------------\n"
+	top_border:     .asciiz "==================== GOMOKU GAME RULES ====================\n"
+
+	intro:          .asciiz "* GAME OBJECTIVE *\nBe the first player to place five of your marks in a row\n(horizontally, vertically, or diagonally).\n\n"
+
+	players:        .asciiz "* PLAYERS AND SYMBOLS *\nTwo players take turns:\n- Player 1 uses symbol: X\n- Player 2 uses symbol: O\n\n"
+
+	win_condition:  .asciiz "* WINNING CONDITION *\nA player wins if they have 5 consecutive symbols in one of\nthese ways:\n- Horizontally\n- Vertically\n- Diagonally (\\ or / direction)\n\n"
+
+	board_text:          .asciiz "* GAME BOARD *\n- The game is played on a 15x15 grid (225 cells).\n"
+
+	tie:            .asciiz "* TIE CONDITION *\nAll 225 cells are filled with no winner — the game announces:\n\"Tie\"\n"
+
 .text
 	jal displayRules
 	jal makeBoard
@@ -35,6 +49,43 @@ displayRules:
 	#jal stackIn
 	
 	#TODO
+	li $v0, 4
+	la $a0, separator
+	syscall
+	la $a0, top_border
+	syscall
+	la $a0, separator
+	syscall
+
+    	# Print intro
+	la $a0, intro
+	syscall
+	la $a0, separator
+	syscall
+
+	# Print players
+	la $a0, players
+	syscall
+	la $a0, separator
+	syscall
+
+	# Print win condition
+	la $a0, win_condition
+	syscall
+	la $a0, separator
+	syscall
+
+	# Print board info
+	la $a0, board_text
+	syscall
+	la $a0, separator
+	syscall
+
+	# Print tie condition
+	la $a0, tie
+	syscall
+	la $a0, separator
+	syscall	
 	
 	#jal stackOut
  	lw $ra, 0($sp)
@@ -45,96 +96,105 @@ makeBoard:
 # ---------------------------------------------------------------------------------------------------- #
 #   Task1: Initialize 'board' one dimension array with size 15*15 row major order
 #   Initial value of each entry is 0
-#   Task2: Initialize 'displayBoard': _x_ then three spaces
+#   Task2: Initialize 'displayBoard': __ 
 # ---------------------------------------------------------------------------------------------------- #
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
-
-    # Initialize board with 0
-    la $t0, board       # $t0 = address of board
-    li $t1, 0           # counter
-    li $t2, 225         # total cells
-init_board_loop:
-    sb $zero, 0($t0)    # store 0
-    addi $t0, $t0, 1
-    addi $t1, $t1, 1
-    blt $t1, $t2, init_board_loop
-
-    # Initialize displayBoard with "___   "
-    la $t0, displayBoard
-    li $t1, 0           # counter
-init_display_loop:
-    li $t2, 95          # ASCII '_'
-    sb $t2, 0($t0)      # _
-    sb $t2, 1($t0)      # _
-    sb $t2, 2($t0)      # _
-    li $t2, 32          # ASCII ' '
-    sb $t2, 3($t0)      # space
-    sb $t2, 4($t0)      # space
-    sb $t2, 5($t0)      # space
-    addi $t0, $t0, 6    # move to next cell
-    addi $t1, $t1, 1
-    li $t2, 225
-    blt $t1, $t2, init_display_loop
-
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
-    jr $ra
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	#jal stackIn
+	
+	#TODO
+	la $a1, board         # base address of board
+	li $t0, 0
+	init_board_loop:
+		sb $zero, ($a1)       # store 0 at board[t0]
+		addi $a1, $a1, 1      # move to next byte
+		addi $t0, $t0, 1      # increment index
+		li $t1, 225           # total entries
+		bne $t0, $t1, init_board_loop
+	#jal stackOut
+ 	lw $ra, 0($sp)
+ 	addi $sp, $sp, 4
+ 	jr $ra
  	
 showBoard:
-addi $sp, $sp, -4
-    sw $ra, 0($sp)
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
 
-    # Print header (column numbers)
-    li $v0, 4
-    la $a0, str_header
-    syscall
+    	# --- Initialization section: board = 0 and displayBoard = "___   " ---
+	la $t0, board       # $t0 = address of board
+	li $t1, 0           # counter
+	li $t2, 225         # total cells
+init_Displayboard_loop:
+	sb $zero, 0($t0)    # store 0 in each board cell
+	addi $t0, $t0, 1
+	addi $t1, $t1, 1
+	blt $t1, $t2, init_Displayboard_loop
 
-    # Print board
-    la $t0, displayBoard  # $t0 = pointer to displayBoard
-    li $t1, 0             # row counter
+    # Initialize displayBoard with "___   "
+	la $t0, displayBoard
+	li $t1, 0           # counter
+init_display_loop:
+	li $t2, 95          # ASCII '_'
+	sb $t2, 0($t0)
+	sb $t2, 1($t0)
+	sb $t2, 2($t0)
+	li $t2, 32          # ASCII space
+	sb $t2, 3($t0)
+	sb $t2, 4($t0)
+	sb $t2, 5($t0)
+	addi $t0, $t0, 6    # move to next display cell
+	addi $t1, $t1, 1
+	li $t2, 225
+	blt $t1, $t2, init_display_loop
+
+    # --- Now display the board as usual ---
+	li $v0, 4
+	la $a0, str_header
+	syscall
+
+	la $t0, displayBoard
+	li $t1, 0             # row counter
 
 print_row:
     # Print row number
-    li $v0, 1
-    move $a0, $t1
-    syscall
+	li $v0, 1
+	move $a0, $t1
+	syscall
 
     # Print spacing after row number
-    li $v0, 4
-    la $a0, str_space
-    syscall
+	li $v0, 4
+	la $a0, str_space
+	syscall
 
-    li $t2, 0             # col counter
+	li $t2, 0             # col counter
 
 print_col:
-    li $t4, 0             # inner counter for 6 chars
+	li $t4, 0             # char index within each cell
 print_cell_char:
-    lb $a0, 0($t0)        # load one byte from displayBoard
-    li $v0, 11            # syscall to print character
-    syscall
-    addi $t0, $t0, 1      # move to next byte in displayBoard
-    addi $t4, $t4, 1
-    li $t5, 6             # 6 characters per cell
-    blt $t4, $t5, print_cell_char
+	lb $a0, 0($t0)
+	li $v0, 11
+	syscall
+	addi $t0, $t0, 1
+	addi $t4, $t4, 1
+	li $t5, 6
+	blt $t4, $t5, print_cell_char
 
-    addi $t2, $t2, 1
-    li $t3, 15
-    blt $t2, $t3, print_col
+	addi $t2, $t2, 1
+	li $t3, 15
+	blt $t2, $t3, print_col
 
-    # New line after row
-    li $v0, 4
-    la $a0, str_endl
-    syscall
+	li $v0, 4
+	la $a0, str_endl
+	syscall
 
-    addi $t1, $t1, 1
-    li $t3, 15
-    blt $t1, $t3, print_row
+	addi $t1, $t1, 1
+	li $t3, 15
+	blt $t1, $t3, print_row
 
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
-    jr $ra
- 	
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+
 promptCoord:
 # ---------------------------------------------------------------------------------------------------- #
 #   	Arguments:
@@ -257,7 +317,7 @@ stackOut:
 	sw $t5, 28($sp)
 	addi $sp, $sp, 32
 	jr $ra
-	
+ 	
 
 	
 	
