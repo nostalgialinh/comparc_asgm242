@@ -5,7 +5,7 @@
     	displayBoard: .space 1350 # each cell display 6 bytes, 225 * 6 = 1350
     	str_endl: .asciiz "\n"
     	str_space: .asciiz "   "
-    	str_header: .asciiz "    _0_   _1_   _2_   _3_   _4_   _5_   _6_   _7_   _8_   _9_   _10   _11   _12   _13   _14\n"
+    	str_header: .asciiz "     _0_   _1_   _2_   _3_   _4_   _5_   _6_   _7_   _8_   _9_   _10   _11   _12   _13   _14\n"
 	rules: .asciiz "abc"
 	coordPrompt1: .asciiz "Player 1, please input your coordinates: "
 	coordPrompt2: .asciiz "Player 2, please input your coordinates: "
@@ -28,15 +28,17 @@
 
 .text
 	jal displayRules
+
+				# execute
 	jal makeBoard
 gamePlay:
 	jal showBoard
 	#jal promptCoord
-	#jal showBoard
-	#jal checkWinner #already printed winner message, return in $v0 1 if game ends, else 0
-	#beqz gamePlay
+# 	#jal showBoard
+# 	#jal checkWinner #already printed winner message, return in $v0 1 if game ends, else 0
+# 	#beqz gamePlay
 
-	#jal writeToFile
+# 	#jal writeToFile
 	li $v0, 10
 	syscall
 	
@@ -157,17 +159,25 @@ init_display_loop:
 
 print_row:
     # Print row number
-	li $v0, 1
-	move $a0, $t1
-	syscall
+    li $v0, 1
+    move $a0, $t1
+    syscall
 
     # Print spacing after row number
-	li $v0, 4
-	la $a0, str_space
-	syscall
+    li $v0, 4
+    la $a0, str_space
+    syscall
+    
+    # Add extra space for single-digit row numbers (0-9)
+    li $t6, 10
+    bge $t1, $t6, skip_extra_space  # If row >= 10, skip extra space
+    li $v0, 11
+    li $a0, 32                      # ASCII space
+    syscall
 
-	li $t2, 0             # col counter
+skip_extra_space:
 
+    li $t2, 0             # col counter
 print_col:
 	li $t4, 0             # char index within each cell
 print_cell_char:
@@ -195,128 +205,128 @@ print_cell_char:
 	addi $sp, $sp, 4
 	jr $ra
 
-promptCoord:
-# ---------------------------------------------------------------------------------------------------- #
-#   	Arguments:
-#	$s0 contains flag: 0 - player 1 ; 1 - player 2
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
-	beqz handlePlayer2
-	handlePlayer1:
-		#prompt
-		jal validateCoord #out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col . Please print msg there
-		beqz handlePlayer1
-		j promptCoord_end
-	handlePlayer2:
-		#prompt
-		jal validateCoord
-		beqz handlePlayer2
-promptCoord_end:
-	jal updateBoard #in: $s2: row; $s3: col
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+# promptCoord:
+# # ---------------------------------------------------------------------------------------------------- #
+# #   	Arguments:
+# #	$s0 contains flag: 0 - player 1 ; 1 - player 2
+# # ---------------------------------------------------------------------------------------------------- #
+# 	addi $sp, $sp, -4
+# 	sw $ra, 0($sp)
+# 	jal stackIn
+# 	beqz handlePlayer2
+# 	handlePlayer1:
+# 		#prompt
+# 		jal validateCoord #out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col . Please print msg there
+# 		beqz handlePlayer1
+# 		j promptCoord_end
+# 	handlePlayer2:
+# 		#prompt
+# 		jal validateCoord
+# 		beqz handlePlayer2
+# promptCoord_end:
+# 	jal updateBoard #in: $s2: row; $s3: col
+# 	jal stackOut
+#  	lw $ra, 0($sp)
+#  	addi $sp, $sp, 4
+#  	jr $ra
 	
-validateCoord:
-# ---------------------------------------------------------------------------------------------------- #
-#	Return:
-#	$v0: 0 if invalid else 1
-#	$s2: row
-#	$s3: col
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
+# validateCoord:
+# # ---------------------------------------------------------------------------------------------------- #
+# #	Return:
+# #	$v0: 0 if invalid else 1
+# #	$s2: row
+# #	$s3: col
+# # ---------------------------------------------------------------------------------------------------- #
+# 	addi $sp, $sp, -4
+# 	sw $ra, 0($sp)
+# 	jal stackIn
 	
-	#TODO
+# 	#TODO
 	
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+# 	jal stackOut
+#  	lw $ra, 0($sp)
+#  	addi $sp, $sp, 4
+#  	jr $ra
 
-updateBoard:
-# ---------------------------------------------------------------------------------------------------- #
-#	Arguments:
-#	$s0: 0 if player 1 else player 2
-#	$s2: row
-#	$s3: col
-#	Description: update both 'board' and 'displayBoard' 
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
+# updateBoard:
+# # ---------------------------------------------------------------------------------------------------- #
+# #	Arguments:
+# #	$s0: 0 if player 1 else player 2
+# #	$s2: row
+# #	$s3: col
+# #	Description: update both 'board' and 'displayBoard' 
+# # ---------------------------------------------------------------------------------------------------- #
+# 	addi $sp, $sp, -4
+# 	sw $ra, 0($sp)
+# 	jal stackIn
 	
-	#TODO
+# 	#TODO
 	
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+# 	jal stackOut
+#  	lw $ra, 0($sp)
+#  	addi $sp, $sp, 4
+#  	jr $ra
 
-checkWinner:
-# ---------------------------------------------------------------------------------------------------- #
-#	Return:
-#	$v0: 1 if game ends, else 0
-#	$s4: 0 if player 1 wins, 1 if player 2 wins, 2 if tie
-#	Description: check if any player win based on 'board', print Result message on terminal if game ends
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
+# checkWinner:
+# # ---------------------------------------------------------------------------------------------------- #
+# #	Return:
+# #	$v0: 1 if game ends, else 0
+# #	$s4: 0 if player 1 wins, 1 if player 2 wins, 2 if tie
+# #	Description: check if any player win based on 'board', print Result message on terminal if game ends
+# # ---------------------------------------------------------------------------------------------------- #
+# 	addi $sp, $sp, -4
+# 	sw $ra, 0($sp)
+# 	jal stackIn
 	
-	#TODO
+# 	#TODO
 	
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+# 	jal stackOut
+#  	lw $ra, 0($sp)
+#  	addi $sp, $sp, 4
+#  	jr $ra
 
-writeToFile:
-# ---------------------------------------------------------------------------------------------------- #
-#	Arguments:
-#	$s4: 0 if player 1 wins, 1 if player 2 wins, 2 if tie
-#	Description: write last displayBoard and result to file
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -4
-	sw $ra, 0($sp)
-	jal stackIn
+# writeToFile:
+# # ---------------------------------------------------------------------------------------------------- #
+# #	Arguments:
+# #	$s4: 0 if player 1 wins, 1 if player 2 wins, 2 if tie
+# #	Description: write last displayBoard and result to file
+# # ---------------------------------------------------------------------------------------------------- #
+# 	addi $sp, $sp, -4
+# 	sw $ra, 0($sp)
+# 	jal stackIn
 	
-	#TODO
+# 	#TODO
 	
-	jal stackOut
- 	lw $ra, 0($sp)
- 	addi $sp, $sp, 4
- 	jr $ra
+# 	jal stackOut
+#  	lw $ra, 0($sp)
+#  	addi $sp, $sp, 4
+#  	jr $ra
 																																						
-stackIn:
-# ---------------------------------------------------------------------------------------------------- #
-# Should use this to avoid wrong value of registers when call functions, NOTE that $ra is not included
-# ---------------------------------------------------------------------------------------------------- #
-	addi $sp, $sp, -32
-	sw $s0, 0($sp)
-	sw $s1, 4($sp)
-	sw $t0, 8($sp)
-	sw $t1, 12($sp)
-	sw $t2, 16($sp)
-	sw $t3, 20($sp)
-	sw $t4, 24($sp)
-	sw $t5, 28($sp)
-	jr $ra
-stackOut:
-	lw $s0, 0($sp)
-	lw $s1, 4($sp)
-	lw $t0, 8($sp)
-	lw $t1, 12($sp)
-	lw $t2, 16($sp)
-	lw $t3, 20($sp)
-	sw $t4, 24($sp)
-	sw $t5, 28($sp)
-	addi $sp, $sp, 32
-	jr $ra
+# stackIn:
+# # ---------------------------------------------------------------------------------------------------- #
+# # Should use this to avoid wrong value of registers when call functions, NOTE that $ra is not included
+# # ---------------------------------------------------------------------------------------------------- #
+# 	addi $sp, $sp, -32
+# 	sw $s0, 0($sp)
+# 	sw $s1, 4($sp)
+# 	sw $t0, 8($sp)
+# 	sw $t1, 12($sp)
+# 	sw $t2, 16($sp)
+# 	sw $t3, 20($sp)
+# 	sw $t4, 24($sp)
+# 	sw $t5, 28($sp)
+# 	jr $ra
+# stackOut:
+# 	lw $s0, 0($sp)
+# 	lw $s1, 4($sp)
+# 	lw $t0, 8($sp)
+# 	lw $t1, 12($sp)
+# 	lw $t2, 16($sp)
+# 	lw $t3, 20($sp)
+# 	sw $t4, 24($sp)
+# 	sw $t5, 28($sp)
+# 	addi $sp, $sp, 32
+# 	jr $ra
  	
 
 	
