@@ -1,6 +1,4 @@
 .data
-	#shared: board, rules prompt, continue prompt, invalid messages
-	#each player: prompt to get coordinate
 	board: .space 225        # 15 x 15 = 225 cells
 	displayBoard: .space 2000
 	str_endl: .asciiz "\n"
@@ -12,7 +10,6 @@
 	outRangeMsg: .asciiz "Coordinates out of range! Each coordinate must be between 0-14."
 	occupiedCellMsg: .asciiz "Cell is already occupied."
 	wrongFormatMsg: .asciiz "Coordinates input should be 'x,y' (Horizontal, Vertical) "
-	newline:        .asciiz "\n"
 	separator:      .asciiz "------------------------------------------------------------\n"
 	top_border:     .asciiz "==================== GOMOKU GAME RULES ====================\n"
 
@@ -25,24 +22,36 @@
 	board_text:          .asciiz "* GAME BOARD *\n- The game is played on a 15x15 grid (225 cells).\n"
 
 	tie:            .asciiz "* TIE CONDITION *\nAll 225 cells are filled with no winner — the game announces:\n\"Tie\"\n"
-
+	
+	#data for prompt coordinate
+	coord: .space 128
+	invalidFormat_prompt: .asciiz "WARNING: Invalid format. Format must be X,Y (horiz,verti). Input again.\n"
+	outOfRange_prompt: .asciiz "WARNING: Coordinate out of range. Must be between 0-14. Input again.\n"
+	notDigit_prompt: .asciiz "WARNING: Coordinate contains non-digit. Input again.\n"
+	leadingZero_prompt: .asciiz "WARNING: Coordinate has leading zero but more than one digit. Input again.\n"
+	preOccupied_prompt: .asciiz "WARNING: Coordinates already occupied. Input again.\n"
 .text
 	jal displayRules
-
-				# execute
-	jal makeBoard
-gamePlay:
-	li $s0, 0 # WARNING : This is global variable, so it will be 0 for player 1 and 1 for player 2
-	jal showInitBoard
-	jal promptCoord
-# 	#jal showBoard
-# 	#jal checkWinner #already printed winner message, return in $v0 1 if game ends, else 0
-# 	#beqz gamePlay
-
-# 	#jal writeToFile
-	li $v0, 10
+	
+	li $v0, 4
+	la $a0, str_endl
 	syscall
 	
+	jal makeBoard
+	jal showInitBoard
+	li $t8, 0
+	li $t9, 2
+gamePlay:
+	rem $s0, $t8, $t9
+	jal promptCoord
+	jal showUpdatedBoard
+	#jal checkWinner #already printed winner message, return in $s5 1 if game ends, else 0
+	addi $t8, $t8, 1
+	bnez $s5, gamePlay
+	#jal writeToFile
+	li $v0, 10
+	syscall
+
 displayRules:
 # ---------------------------------------------------------------------------------------------------- #
 #   Print rules in terminal 
@@ -340,24 +349,15 @@ handlePlayer1:
 	la $a0, coordPrompt1
 	syscall
 
+	jal validateCoord  # out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col
+	beqz $s5, handlePlayer1  # If invalid, prompt again
+	jal updateBoard
+	beqz $s5, handlePlayer1
+	
 	li $v0, 4
 	la $a0, str_endl
 	syscall
-
-
-	# Hard code coordinates for Player 1
-	li $s2, 5            # Row 5 
-	li $s3, 5            # Column 5
-	
-	# Here you would normally validate the coordinates
-	# jal validateCoord  # out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col
-	# beqz $v0, handlePlayer1  # If invalid, prompt again
-	
-	jal updateBoard      # in: $s2: row; $s3: col
-	jal showUpdatedBoard # Display the updated board
-	
-	# Toggle player for next turn
-	li $s0, 1
+	j promptCoord_end
 	
 handlePlayer2:
 	# Display prompt for Player 2
@@ -365,23 +365,15 @@ handlePlayer2:
 	la $a0, coordPrompt2
 	syscall
 
+	jal validateCoord  # out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col
+	beqz $s5, handlePlayer2  # If invalid, prompt again
+	jal updateBoard
+	beqz $s5, handlePlayer2 
+	
 	li $v0, 4
 	la $a0, str_endl
 	syscall
 	
-	# Hard code coordinates for Player 2
-	li $s2, 6            # Row 6
-	li $s3, 6            # Column 6
-	
-	# Here you would normally validate the coordinates
-	# jal validateCoord  # out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col
-	# beqz $v0, handlePlayer2  # If invalid, prompt again
-	
-	jal updateBoard      # in: $s2: row; $s3: col
-	jal showUpdatedBoard # Display the updated board
-	
-	# Toggle player for next turn
-	li $s0, 0
 		
 promptCoord_end:
 	jal stackOut
@@ -400,19 +392,165 @@ validateCoord:
 	sw $ra, 0($sp)
 	jal stackIn
 	
-	#TODO
+	li $v0, 8
+	la $a0, coord
+	li $a1, 127 #maximum char to read
+	syscall
 	
+	#correct formats: d,d; dd,dd; d,dd; dd,d --> max_length = 5, at least 3
+	#$a0 hold address of current index
+	#$t0 hold length
+	li $t0, 0
+	la $t1, coord
+	li $t2, -1 #index of comma
+	li $t3, ','
+	#make sure correct length + only one comma is accepted
+	getBufferLength:
+		lb $t4, 0($t1)
+		beqz $t4 end_getBufferLength
+		beq $t4, $t3, isComma
+		j continueGBL
+		isComma:
+		bne $t2, -1, invalidFormat
+		move $t2,$t0
+		continueGBL:
+		addi $t0, $t0, 1
+		addi $t1, $t1, 1
+		j getBufferLength
+	
+	end_getBufferLength:
+	addi $t0, $t0, -1 # endline
+		
+	#slti $t1, $t0, 3
+	#bnez $t1, invalidFormat
+		
+	#slti $t1, $t0, 6
+	#beqz $t1, invalidFormat
+	move $s0, $t0 #s0 hold length
+	
+	
+	#done checking length, now checking position of comma 
+	beq $t2, -1, invalidFormat #no comma
+	#before comma
+	add $sp, $sp, -4
+	sw $ra, 0($sp)
+	li $t0, 0
+	jal checkEachCoord
+	lw $ra, 0($sp)
+	add $sp, $sp, 4
+	move $s2, $s4
+	beqz $s5, end_validateCoord
+	
+	#after comma 
+	add $sp, $sp, -4
+	sw $ra, 0($sp)
+	move $t0, $t2
+	addi $t0, $t0, 1
+	move $t2, $s0
+	
+	jal checkEachCoord
+	lw $ra, 0($sp)
+	add $sp, $sp, 4
+	move $s3, $s4
+	j end_validateCoord
+	
+	invalidFormat:
+		li $v0, 4
+		la $a0, invalidFormat_prompt
+		syscall
+		li $s5, 0
+		
+end_validateCoord:
 	jal stackOut
  	lw $ra, 0($sp)
  	addi $sp, $sp, 4
  	jr $ra
+ 	
+checkEachCoord:
+# start index $t0, end index  + 1 $t2, return $s5 is 0 if invalid
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal stackIn
+	
+	la $t1, coord
+	li $t3, 0 #contain count
+	
+	sub $t2, $t2, $t0 #contain number of char 
 
+	seq $t4, $t2, 0
+	sgt $t5, $t2, 2
+	or $t5, $t4, $t5
+	bnez $t5, outOfRange
+	add $t0, $t0, $t1
+
+	beq $t2, 1, oneChar #t2 hold number of char
+	twoChar:
+		lb $t1, 0($t0)
+		addi $t1, $t1, -48
+		beqz $t1, leadingZero
+		sltiu $t3, $t1, 10 #t3 = 1 if t1 less than 10
+		li $t2, 0
+		sle $t2, $t2, $t1 #t2 = 1 if 0 <= t1
+		and $t2, $t3, $t2
+		beqz $t2, notDigit
+		bne $t1, 1, outOfRange
+		
+		addi $t0, $t0, 1
+		lbu $t1, 0($t0)
+		addi $t1, $t1, -48
+		sltiu $t3, $t1, 10 #t3 = 1 if t1 less than 10
+		li $t2, 0
+		sle $t2, $t2, $t1 #t2 = 1 if 0 <= t1
+		and $t2, $t3, $t2
+		beqz $t2, notDigit
+		slti $t2, $t1, 5 #t2 - 1 if t1 less than 5
+		beqz $t2, outOfRange
+		move $s4, $t1
+		addi $s4, $s4, 10
+		li $s5, 1
+	j end_checkEachCoord
+	oneChar:
+		lbu $t0, 0($t0)
+		addi $t0, $t0, -48
+		sltiu $t1, $t0, 10
+		li $t2, 0
+		sle $t2, $t2, $t0
+		and $t2, $t1, $t2
+		beqz $t2, notDigit
+		move $s4, $t0
+		li $s5, 1
+	j end_checkEachCoord
+	outOfRange:
+		li $v0, 4
+		la $a0, outOfRange_prompt
+		syscall
+		li $s5, 0
+		j end_checkEachCoord
+	leadingZero:
+		li $v0, 4
+		la $a0, leadingZero_prompt
+		syscall
+		li $s5, 0
+		j end_checkEachCoord
+	notDigit:
+		li $v0, 4
+		la $a0, notDigit_prompt
+		syscall
+		li $s5, 0
+end_checkEachCoord:	
+	jal stackOut
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	jr $ra
+	
 updateBoard:
 # ---------------------------------------------------------------------------------------------------- #
 #	Arguments:
 #	$s0: 0 if player 1 else player 2
 #	$s2: row
 #	$s3: col
+#	Return:
+#	$s5: 1 if updated successfully else 0
 #	Description: update both 'board' and 'displayBoard' 
 # ---------------------------------------------------------------------------------------------------- #
 	addi $sp, $sp, -4
@@ -428,6 +566,15 @@ updateBoard:
 	la $t2, board
 	add $t2, $t2, $t1    # Actual memory address to update
 	
+	lb $t3, 0($t2)
+	beqz $t3, notPreoccupied
+	li $v0, 4
+	la $a0, preOccupied_prompt
+	syscall
+	li $s5, 0
+	j end_updateBoard
+	
+notPreoccupied:
 	# Determine which value to store based on current player
 	beqz $s0, player1_mark
 	li $t3, 2            # Player 2 (O) = 2
@@ -439,7 +586,9 @@ player1_mark:
 store_mark:
 	# Store the player's mark at the calculated position
 	sb $t3, 0($t2)       # Update the board array with player's mark
+	li $s5, 1
 	
+end_updateBoard:	
 	jal stackOut
  	lw $ra, 0($sp)
  	addi $sp, $sp, 4
@@ -448,7 +597,7 @@ store_mark:
 # checkWinner:
 # # ---------------------------------------------------------------------------------------------------- #
 # #	Return:
-# #	$v0: 1 if game ends, else 0
+# #	$s5: 1 if game ends, else 0
 # #	$s4: 0 if player 1 wins, 1 if player 2 wins, 2 if tie
 # #	Description: check if any player win based on 'board', print Result message on terminal if game ends
 # # ---------------------------------------------------------------------------------------------------- #
@@ -505,7 +654,7 @@ stackOut:
 	sw $t5, 28($sp)
 	addi $sp, $sp, 32
 	jr $ra
- 	
 
+	
 	
 	
