@@ -203,7 +203,7 @@ promptCoord:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal stackIn
-	beqz handlePlayer2
+	beqz $s0, handlePlayer2
 	handlePlayer1:
 		#prompt
 		jal validateCoord #out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col . Please print msg there
