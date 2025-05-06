@@ -11,17 +11,14 @@
 	occupiedCellMsg: .asciiz "Cell is already occupied."
 	wrongFormatMsg: .asciiz "Coordinates input should be 'x,y' (Horizontal, Vertical) "
 	separator:      .asciiz "------------------------------------------------------------\n"
-	top_border:     .asciiz "==================== GOMOKU GAME RULES ====================\n"
+	top_border:     .asciiz "=================== FIVE IN A ROW RULES ====================\n"
+	intro:          .asciiz "* GAME OBJECTIVE *\n-Be the first player to place 5 of your marks in a row\n(horizontally, vertically, or diagonally).\n- The game is played on a 15x15 grid (225 cells).\n"
+	
+	inputFormat: .asciiz  "* INPUT FORMAT *\nEvery coordinates input must be in format: [   X   ,   Y   ]\nWhere:\n- X: horizontal coordinate, 0 <= X <= 14\n- Y: vertical coordinate, 0 <= Y <= 14\nNote:\n- No leading zeros.\n- No trailing spaces.\n- If there is a format mistake, we will let you input again.\n"
 
-	intro:          .asciiz "* GAME OBJECTIVE *\nBe the first player to place five of your marks in a row\n(horizontally, vertically, or diagonally).\n\n"
+	players:        .asciiz "* PLAYERS AND SYMBOLS *\nTwo players take turns:\n- Player 1 uses symbol: X\n- Player 2 uses symbol: O\n"
 
-	players:        .asciiz "* PLAYERS AND SYMBOLS *\nTwo players take turns:\n- Player 1 uses symbol: X\n- Player 2 uses symbol: O\n\n"
-
-	win_condition:  .asciiz "* WINNING CONDITION *\nA player wins if they have 5 consecutive symbols in one of\nthese ways:\n- Horizontally\n- Vertically\n- Diagonally (\\ or / direction)\n\n"
-
-	board_text:          .asciiz "* GAME BOARD *\n- The game is played on a 15x15 grid (225 cells).\n"
-
-	tie:            .asciiz "* TIE CONDITION *\nAll 225 cells are filled with no winner - the game announces:\n\"Tie\"\n"
+	win_condition:  .asciiz "* WINNING CONDITION & TIE CONDITION *\nA player wins if they have 5 consecutive symbols in one of\nthese ways:\n- Horizontally\n- Vertically\n- Diagonally (\\ or / direction)\nAll 225 cells are filled with no winner - the game announces:\n\"Tie\"\n"
 
 	player1win : .asciiz "Player 1 wins\n" #14 (does not count '0')
 	player2win : .asciiz "Player 2 wins\n" #14
@@ -88,6 +85,12 @@ displayRules:
 	syscall
 	la $a0, separator
 	syscall
+	
+	#print input rules
+	la $a0, inputFormat
+	syscall
+	la $a0, separator
+	syscall
 
 	# Print win condition
 	la $a0, win_condition
@@ -95,17 +98,6 @@ displayRules:
 	la $a0, separator
 	syscall
 
-	# Print board info
-	la $a0, board_text
-	syscall
-	la $a0, separator
-	syscall
-
-	# Print tie condition
-	la $a0, tie
-	syscall
-	la $a0, separator
-	syscall	
 	
 	#jal stackOut
  	lw $ra, 0($sp)
@@ -137,7 +129,7 @@ makeBoard:
 		addi $t0, $t0, 1      # increment index
 		bne $t0, $t1, init_board_loop
  
- 	#header: 5 spaces + column, each cell '_D_  ' -> 5 + 6*14 + 1 ('\n') = 90 (0-89)
+ 	#header: 5 spaces + column, each cell '_D_  ' -> 5 + 6*15 + 1 ('\n') = 96 (0-89)
  	la $t0, displayBoard
 	li $t1, 5
 	li $t2, 32
@@ -267,7 +259,7 @@ promptCoord:
 # ---------------------------------------------------------------------------------------------------- #
 #   	Arguments:
 #	$s0 contains flag: 0 - player 1 ; 1 - player 2
-# 	$v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col 
+# 	$s5: 0 --> invalid, 1 --> valid; $s2: row; $s3: col 
 # ---------------------------------------------------------------------------------------------------- #
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -282,10 +274,10 @@ handlePlayer1:
 	la $a0, coordPrompt1
 	syscall
 
-	jal validateCoord  # out: $v0: 0 --> invalid, 1 --> valid; $s2: row; $s3: col
+	jal validateCoord  # out: $s5: 0 --> invalid, 1 --> valid; $s2: row; $s3: col
 	beqz $s5, handlePlayer1  # If invalid, prompt again
-	jal updateBoard
-	beqz $s5, handlePlayer1
+	jal updateBoard#out: $s5: 0 --> invalid, 1 --> valid; 
+	beqz $s5, handlePlayer1# If invalid prompt again
 	
 	li $v0, 4
 	la $a0, str_endl
@@ -317,7 +309,7 @@ promptCoord_end:
 validateCoord:
 # ---------------------------------------------------------------------------------------------------- #
 #	Return:
-#	$v0: 0 if invalid else 1
+#	$s5: 0 if invalid else 1
 #	$s2: row
 #	$s3: col
 # ---------------------------------------------------------------------------------------------------- #
